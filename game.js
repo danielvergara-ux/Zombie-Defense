@@ -151,6 +151,28 @@ let arenaShieldMs = 0
 let arenaKnockbackVX = 0
 let arenaKnockbackVY = 0
 
+let tutorialBox = null
+let tutorialTitle = null
+let tutorialText = null
+let tutorialProgress = null
+let tutorialSkipButton = null
+let tutorialDismissUntil = 0
+let arenaTutorialDismissUntil = 0
+const tutorialState = {
+    active: true,
+    step: 0,
+    moved: false,
+    shot: false,
+    collectedDrop: false,
+    firstShopSeen: false,
+    shopUpgradeBought: false,
+    completed: false,
+    arenaActive: false,
+    arenaStep: 0,
+    arenaMoved: false,
+    arenaShot: false
+}
+
 const keys = {}
 const svgSpriteCache = new Map()
 
@@ -161,6 +183,249 @@ function getSvgImage(cacheKey, svgMarkup){
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`
     svgSpriteCache.set(cacheKey, image)
     return image
+}
+
+function ensureTutorialUI(){
+    if(tutorialBox) return
+
+    const style = document.createElement("style")
+    style.textContent = `
+        @keyframes tutorialFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-4px); }
+        }
+        @keyframes tutorialGlow {
+            0%, 100% { box-shadow: 0 0 0 rgba(249,115,22,0.0); }
+            50% { box-shadow: 0 0 24px rgba(249,115,22,0.22); }
+        }
+    `
+    document.head.appendChild(style)
+
+    tutorialBox = document.createElement("div")
+    tutorialBox.setAttribute("aria-live", "polite")
+    tutorialBox.style.position = "fixed"
+    tutorialBox.style.left = "20px"
+    tutorialBox.style.bottom = "18px"
+    tutorialBox.style.zIndex = "1200"
+    tutorialBox.style.maxWidth = "380px"
+    tutorialBox.style.background = "linear-gradient(140deg, rgba(15,23,42,0.94), rgba(30,41,59,0.94))"
+    tutorialBox.style.border = "1px solid rgba(251,146,60,0.55)"
+    tutorialBox.style.borderRadius = "12px"
+    tutorialBox.style.padding = "12px 12px 10px"
+    tutorialBox.style.color = "#f8fafc"
+    tutorialBox.style.fontFamily = "Segoe UI, Arial, sans-serif"
+    tutorialBox.style.fontSize = "13px"
+    tutorialBox.style.lineHeight = "1.35"
+    tutorialBox.style.opacity = "0"
+    tutorialBox.style.transform = "translateY(14px)"
+    tutorialBox.style.transition = "opacity 220ms ease, transform 220ms ease"
+    tutorialBox.style.animation = "tutorialFloat 2.6s ease-in-out infinite, tutorialGlow 2.2s ease-in-out infinite"
+
+    tutorialTitle = document.createElement("div")
+    tutorialTitle.style.fontWeight = "700"
+    tutorialTitle.style.fontSize = "15px"
+    tutorialTitle.style.marginBottom = "6px"
+    tutorialTitle.style.color = "#fed7aa"
+
+    tutorialText = document.createElement("div")
+    tutorialText.style.marginBottom = "8px"
+
+    const footer = document.createElement("div")
+    footer.style.display = "flex"
+    footer.style.alignItems = "center"
+    footer.style.justifyContent = "space-between"
+    footer.style.gap = "8px"
+
+    tutorialProgress = document.createElement("span")
+    tutorialProgress.style.color = "#fdba74"
+    tutorialProgress.style.fontWeight = "600"
+
+    tutorialSkipButton = document.createElement("button")
+    tutorialSkipButton.type = "button"
+    tutorialSkipButton.textContent = "Omitir tutorial"
+    tutorialSkipButton.style.border = "none"
+    tutorialSkipButton.style.borderRadius = "8px"
+    tutorialSkipButton.style.padding = "6px 10px"
+    tutorialSkipButton.style.cursor = "pointer"
+    tutorialSkipButton.style.background = "#fb923c"
+    tutorialSkipButton.style.color = "#111827"
+    tutorialSkipButton.style.fontWeight = "700"
+    tutorialSkipButton.addEventListener("click", () => {
+        tutorialState.completed = true
+        hideTutorialUI()
+    })
+
+    footer.appendChild(tutorialProgress)
+    footer.appendChild(tutorialSkipButton)
+    tutorialBox.appendChild(tutorialTitle)
+    tutorialBox.appendChild(tutorialText)
+    tutorialBox.appendChild(footer)
+    document.body.appendChild(tutorialBox)
+}
+
+function showTutorialUI(){
+    ensureTutorialUI()
+    tutorialBox.style.opacity = "1"
+    tutorialBox.style.transform = "translateY(0px)"
+}
+
+function hideTutorialUI(){
+    if(!tutorialBox) return
+    tutorialBox.style.opacity = "0"
+    tutorialBox.style.transform = "translateY(14px)"
+}
+
+function resetTutorial(){
+    tutorialState.step = 0
+    tutorialState.moved = false
+    tutorialState.shot = false
+    tutorialState.collectedDrop = false
+    tutorialState.firstShopSeen = false
+    tutorialState.shopUpgradeBought = false
+    tutorialState.completed = false
+    tutorialState.arenaActive = false
+    tutorialState.arenaStep = 0
+    tutorialState.arenaMoved = false
+    tutorialState.arenaShot = false
+    tutorialDismissUntil = 0
+    arenaTutorialDismissUntil = 0
+    refreshTutorialUI()
+}
+
+function refreshTutorialUI(){
+    if(!tutorialState.active){
+        hideTutorialUI()
+        return
+    }
+
+    if(tutorialState.completed && !tutorialState.arenaActive){
+        hideTutorialUI()
+        return
+    }
+
+    showTutorialUI()
+
+    let title = "Tutorial"
+    let text = ""
+    let progress = ""
+
+    if(tutorialState.arenaActive){
+        if(tutorialState.arenaStep === 0){
+            title = "Modo Arena Activo"
+            text = "Ahora te rodean desde todos lados. Muevete con WASD o flechas para reposicionarte."
+            progress = "Arena 1/3"
+        } else if(tutorialState.arenaStep === 1){
+            title = "Apunta y Dispara"
+            text = "Apunta con el mouse y dispara con click izquierdo o Espacio. Mantente en movimiento."
+            progress = "Arena 2/3"
+        } else {
+            title = "Supervivencia Arena"
+            text = "Si te tocan, pierdes vida y activas escudo breve. Prioriza kitear y limpiar rutas."
+            progress = "Arena 3/3"
+        }
+    } else if(tutorialState.step === 0){
+        title = "Movimiento Basico"
+        text = "Muevete con Flecha Izquierda y Flecha Derecha para cubrir toda la pared."
+        progress = "Paso 1/5"
+    } else if(tutorialState.step === 1){
+        title = "Disparo"
+        text = "Dispara con Espacio para frenar la primera oleada. Mantener presionado tambien funciona."
+        progress = "Paso 2/5"
+    } else if(tutorialState.step === 2){
+        title = "Recoge Recursos"
+        text = "Acercate a cualquier drop para recogerlo automaticamente: municion, madera o armas."
+        progress = "Paso 3/5"
+    } else if(tutorialState.step === 3){
+        title = "Sostener La Defensa"
+        text = `Aguanta hasta la ronda 5. La tienda abre cada ${SHOP_INTERVAL} rondas para mejorar tu build.`
+        progress = "Paso 4/5"
+    } else if(tutorialState.step === 4){
+        title = "Tienda Explicada"
+        text = "En tienda gastas monedas para mejoras permanentes. Prioriza Pared/Cadencia al inicio, luego Movilidad y Lanzallamas."
+        progress = "Paso 5/5"
+    } else if(tutorialState.step === 5){
+        title = "Cierre Del Tutorial"
+        text = "Compra una mejora si quieres y pulsa Continuar para volver al combate."
+        progress = "Final"
+    }
+
+    tutorialTitle.textContent = title
+    tutorialText.textContent = text
+    tutorialProgress.textContent = progress
+}
+
+function updateTutorialProgress(){
+    if(!tutorialState.active) return
+
+    const nowMs = performance.now()
+    if(tryAdvanceArenaTutorial(nowMs)) return
+
+    if(tutorialState.completed) return
+
+    tryAdvanceDefenseTutorial(nowMs)
+}
+
+function tryAdvanceArenaTutorial(nowMs){
+    if(!tutorialState.arenaActive) return false
+
+    if(tutorialState.arenaStep === 0 && tutorialState.arenaMoved){
+        tutorialState.arenaStep = 1
+        refreshTutorialUI()
+        return true
+    }
+
+    if(tutorialState.arenaStep === 1 && tutorialState.arenaShot){
+        tutorialState.arenaStep = 2
+        arenaTutorialDismissUntil = nowMs + 4500
+        refreshTutorialUI()
+        return true
+    }
+
+    if(tutorialState.arenaStep === 2 && arenaTutorialDismissUntil > 0 && nowMs > arenaTutorialDismissUntil){
+        tutorialState.arenaActive = false
+        refreshTutorialUI()
+        return true
+    }
+
+    return false
+}
+
+function tryAdvanceDefenseTutorial(nowMs){
+    if(tutorialState.step === 0 && tutorialState.moved){
+        tutorialState.step = 1
+        refreshTutorialUI()
+        return
+    }
+
+    if(tutorialState.step === 1 && tutorialState.shot){
+        tutorialState.step = 2
+        refreshTutorialUI()
+        return
+    }
+
+    if(tutorialState.step === 2 && tutorialState.collectedDrop){
+        tutorialState.step = 3
+        refreshTutorialUI()
+        return
+    }
+
+    if(tutorialState.step === 3 && tutorialState.firstShopSeen){
+        tutorialState.step = 4
+        tutorialDismissUntil = nowMs + 3800
+        refreshTutorialUI()
+        return
+    }
+
+    if(tutorialState.step === 4 && shopOpen && tutorialState.shopUpgradeBought){
+        tutorialState.step = 5
+        refreshTutorialUI()
+        return
+    }
+
+    if(tutorialState.step === 4 && tutorialDismissUntil > 0 && nowMs > tutorialDismissUntil){
+        tutorialState.step = 5
+        refreshTutorialUI()
+    }
 }
 
 function buildPlayerSvg(weaponType){
@@ -332,6 +597,12 @@ function processArenaTransition(deltaMs){
         roundBanner = "Modo Arena"
         roundBannerAlpha = 1
         roundBannerTimer = 120
+        tutorialState.arenaActive = true
+        tutorialState.arenaStep = 0
+        tutorialState.arenaMoved = false
+        tutorialState.arenaShot = false
+        arenaTutorialDismissUntil = 0
+        refreshTutorialUI()
         updateSpawnTimer()
     }
 }
@@ -569,6 +840,8 @@ function initGame(){
     arenaKnockbackVX = 0
     arenaKnockbackVY = 0
 
+    resetTutorial()
+
     clearReloadUI()
     updateUI()
     updateSpawnTimer()
@@ -664,6 +937,12 @@ function showShop(){
     shopOfferTypes = pickRandomShopOffers()
     updateShopButtons()
     shopOverlay.classList.remove("hidden")
+
+    if(!tutorialState.completed){
+        tutorialState.firstShopSeen = true
+        updateTutorialProgress()
+        refreshTutorialUI()
+    }
 }
 
 function hideShop(){
@@ -678,6 +957,11 @@ function resumeRoundAfterShop(){
     roundBannerAlpha = 1
     roundBannerTimer = 120
     updateSpawnTimer()
+
+    if(!tutorialState.completed && tutorialState.firstShopSeen){
+        tutorialState.completed = true
+        hideTutorialUI()
+    }
 }
 
 function clearReloadUI(){
@@ -1016,6 +1300,10 @@ function shoot(now){
     else if(activeWeapon === "flame") fireFlamethrower()
     else firePistol()
 
+    tutorialState.shot = true
+    if(gamePhase === "arena") tutorialState.arenaShot = true
+    updateTutorialProgress()
+
     nextShotTime = now + getWeaponCooldown()
 }
 
@@ -1214,6 +1502,8 @@ function collectDropGroup(dropArray, onCollect){
         if(Math.abs(drop.x - player.x) < 20 && Math.abs(drop.y - player.y) < 20){
             onCollect(drop)
             dropArray.splice(index, 1)
+            tutorialState.collectedDrop = true
+            updateTutorialProgress()
             updateUI()
         }
     }
@@ -1230,13 +1520,11 @@ function collectDrops(){
 
     collectDropGroup(shotgunDrops, shotgunDrop => {
         shotgunAmmo += shotgunDrop.amount
-        if(activeWeapon !== "shotgun") activeWeapon = "shotgun"
     })
 
     collectDropGroup(flameDrops, flameDrop => {
         upgrades.flameUnlocked = true
         flameAmmo += flameDrop.amount
-        if(activeWeapon !== "flame") activeWeapon = "flame"
     })
 }
 
@@ -1389,6 +1677,11 @@ function buyUpgrade(type){
     coins -= cost
     upgradeLevels[type]++
 
+    if(shopOpen && !tutorialState.completed && tutorialState.firstShopSeen){
+        tutorialState.shopUpgradeBought = true
+        updateTutorialProgress()
+    }
+
     if(type === "wall"){
         wall.maxLife += 10
         wall.life = Math.min(wall.life + 20, wall.maxLife)
@@ -1488,7 +1781,7 @@ function throwGrenade(){
     updateUI()
 }
 
-function movePlayer(){
+function getMovementAxis(){
     let axisX = 0
     if(keys.ArrowLeft) axisX -= 1
     if(keys.ArrowRight) axisX += 1
@@ -1501,6 +1794,14 @@ function movePlayer(){
         if(keys.KeyS || keys.ArrowDown) axisY += 1
     }
 
+    return { axisX, axisY }
+}
+
+function movePlayer(){
+    const movement = getMovementAxis()
+    const axisX = movement.axisX
+    const axisY = movement.axisY
+
     if(axisX !== 0){
         player.x += axisX * player.speed
         player.x = Math.max(0, Math.min(WIDTH - player.width, player.x))
@@ -1509,6 +1810,12 @@ function movePlayer(){
     if(axisY !== 0 && gamePhase === "arena"){
         player.y += axisY * player.speed
         player.y = Math.max(0, Math.min(HEIGHT - player.height, player.y))
+    }
+
+    if(axisX !== 0 || axisY !== 0){
+        tutorialState.moved = true
+        if(gamePhase === "arena") tutorialState.arenaMoved = true
+        updateTutorialProgress()
     }
 }
 
@@ -1523,6 +1830,7 @@ function update(now){
     update.lastNow = now
 
     updateEffects(deltaMs)
+    updateTutorialProgress()
 
     if(!gameRunning || gameOver || shopOpen) return
 
@@ -1732,11 +2040,11 @@ function drawDrops(){
 }
 
 function drawFlameRange(){
-    if(gamePhase !== "arena" || activeWeapon !== "flame") return
+    if(activeWeapon !== "flame") return
     
     const originX = player.x + player.width / 2
     const originY = player.y + player.height / 2
-    const aim = getAimDirection(originX, originY)
+    const aim = gamePhase === "arena" ? getAimDirection(originX, originY) : { x: 0, y: -1 }
     const maxRange = upgrades.flameRange
     const coneAngle = 0.65
     
@@ -2067,4 +2375,5 @@ retryBtn.addEventListener("click", () => {
 })
 
 showOverlay("Zombie Wall Defense", "Protege la pared, gana monedas y compra mejoras cada 5 rondas", true, false)
+refreshTutorialUI()
 gameLoop()
