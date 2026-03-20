@@ -643,8 +643,11 @@ const SHOP_BUTTON_MAP = {
 
 function pickRandomShopOffers(){
     const allTypes = Object.keys(SHOP_BUTTON_MAP)
-    const notMaxed = allTypes.filter(type => !isUpgradeMaxed(type))
-    const pool = notMaxed.length > 0 ? notMaxed : allTypes
+    const validTypes = gamePhase === "arena"
+        ? allTypes.filter(type => type !== "wall")
+        : allTypes
+    const notMaxed = validTypes.filter(type => !isUpgradeMaxed(type))
+    const pool = notMaxed.length > 0 ? notMaxed : validTypes
     const picked = []
 
     while(pool.length > 0 && picked.length < 3){
@@ -907,6 +910,16 @@ function updateToolsUI(){
 
     toolsSection.classList.remove("hidden")
     toolsSubtitle.textContent = `Desbloqueado. Monedas: ${coins} | Madera: ${woodCount}`
+
+    const isArenaShop = gamePhase === "arena"
+    toolFullRepairButton.style.display = isArenaShop ? "none" : "flex"
+    toolTrapButton.style.display = isArenaShop ? "none" : "flex"
+    toolGrenadeButton.style.display = "flex"
+
+    if(isArenaShop){
+        updateToolButtonDisabled(toolGrenadeButton, coins < TOOL_COSTS.grenade)
+        return
+    }
 
     updateToolButtonDisabled(
         toolFullRepairButton,
@@ -1762,8 +1775,8 @@ function throwGrenade(){
 
     grenades--
 
-    const centerX = player.x + player.width / 2
-    const centerY = Math.max(80, wall.y - 55)
+    const centerX = Math.max(20, Math.min(WIDTH - 20, mouseX))
+    const centerY = Math.max(20, Math.min(HEIGHT - 20, mouseY))
     const radius = 120
 
     for(let index = zombies.length - 1; index >= 0; index--){
