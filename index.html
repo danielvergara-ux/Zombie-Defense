@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Zombie Wall Defense</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<h1>Zombie Wall Defense</h1>
+
+<div class="hud-top">
+<div class="stat-pill">Arma activa: <span id="weapon">Pistola</span></div>
+<div class="stat-pill round-pill">Ronda: <span id="round">1</span></div>
+<div class="stat-pill wood-pill">&#x1F6AA; Madera: <span id="wood">0</span></div>
+<div class="stat-pill coin-pill">Monedas: <span id="coins">0</span></div>
+<div class="stat-pill trap-pill">Granadas: <span id="grenades">0</span></div>
+<div class="stat-pill">Vida de la pared: <span id="wall">100</span></div>
+<div class="stat-pill">Vida Arena: <span id="arenaLife">--</span></div>
+</div>
+
+<div class="arena-wrap">
+<div class="left-stage">
+
+<div id="overlay" class="overlay">
+  <div class="overlay-card">
+    <h2 id="overlayTitle">Zombie Wall Defense</h2>
+    <p id="overlaySubtitle">Protege la pared de las hordas de zombies</p>
+    <button id="startBtn" class="overlay-btn btn-start" type="button">Iniciar</button>
+    <button id="retryBtn" class="overlay-btn btn-retry hidden" type="button">Reintentar</button>
+  </div>
+</div>
+
+<div id="shopOverlay" class="overlay hidden">
+  <div class="overlay-card shop-card">
+    <h2>Tienda de Ronda</h2>
+    <p id="shopSubtitle">Mejora tu defensa antes de continuar</p>
+    <div class="shop-grid">
+      <button id="upgradeWall" class="shop-item" type="button">
+        <span class="shop-name">Pared Reforzada</span>
+        <span class="shop-desc">+20 vida instantanea y +10 vida maxima</span>
+        <span class="shop-cost">20 monedas</span>
+      </button>
+      <button id="upgradeFireRate" class="shop-item" type="button">
+        <span class="shop-name">Cadencia</span>
+        <span class="shop-desc">Disparas mas rapido con todas las armas</span>
+        <span class="shop-cost">18 monedas</span>
+      </button>
+      <button id="upgradePistolMag" class="shop-item" type="button">
+        <span class="shop-name">Cargador Extendido</span>
+        <span class="shop-desc">+2 balas maximas para la pistola</span>
+        <span class="shop-cost">16 monedas</span>
+      </button>
+      <button id="upgradeBulletSpeed" class="shop-item" type="button">
+        <span class="shop-name">Municion Veloz</span>
+        <span class="shop-desc">Balas y perdigones mas rapidos</span>
+        <span class="shop-cost">14 monedas</span>
+      </button>
+      <button id="upgradeFlame" class="shop-item" type="button">
+        <span class="shop-name">Lanzallamas</span>
+        <span class="shop-desc">Mas alcance y fuego sostenido</span>
+        <span class="shop-cost">22 monedas</span>
+      </button>
+      <button id="upgradeMoveSpeed" class="shop-item" type="button">
+        <span class="shop-name">Botas</span>
+        <span class="shop-desc">+0.75 velocidad de movimiento</span>
+        <span class="shop-cost">15 monedas</span>
+      </button>
+    </div>
+
+    <div id="toolsSection" class="tools-section hidden">
+      <h3>Herramientas Secretas</h3>
+      <p id="toolsSubtitle" class="tools-subtitle">Se desbloquea en rondas avanzadas</p>
+      <div class="shop-grid tools-grid">
+        <button id="toolFullRepair" class="shop-item tool-item" type="button">
+          <span class="shop-name">Reparar Barrera Total</span>
+          <span class="shop-desc">Restaura la barrera al 100%</span>
+          <span class="shop-cost">100 monedas + 10 madera</span>
+        </button>
+        <button id="toolGrenade" class="shop-item tool-item" type="button">
+          <span class="shop-name">Granada Explosiva</span>
+          <span class="shop-desc">Daño en área, se usa con tecla G</span>
+          <span class="shop-cost">80 monedas</span>
+        </button>
+        <button id="toolTrap" class="shop-item tool-item" type="button">
+          <span class="shop-name">Trampa de Pinchos</span>
+          <span class="shop-desc">Se coloca frente a la pared y se desgasta al matar</span>
+          <span class="shop-cost">120 monedas</span>
+        </button>
+      </div>
+    </div>
+
+    <button id="closeShopBtn" class="overlay-btn btn-start shop-continue" type="button">Continuar</button>
+  </div>
+</div>
+
+<div id="reloadBox" class="reload-box hidden" aria-live="polite">
+<div id="reloadFill" class="reload-fill"></div>
+<span id="reloadText" class="reload-text">Recargando...</span>
+</div>
+
+<canvas id="game" width="900" height="500"></canvas>
+</div>
+
+<aside class="weapons-panel">
+<h2>Arsenal</h2>
+<button id="weaponPistol" class="weapon-card active" type="button">
+<div class="weapon-name">Pistola</div>
+<div class="weapon-key">Tecla 1</div>
+<div class="weapon-ammo">Balas: <span id="ammo">10/10</span></div>
+<div class="weapon-ammo">Reserva: <span id="mag">0</span></div>
+</button>
+
+<button id="weaponShotgun" class="weapon-card" type="button">
+<div class="weapon-name">Escopeta</div>
+<div class="weapon-key">Tecla 2</div>
+<div class="weapon-ammo">Balas: <span id="shotgunAmmo">0</span></div>
+<div class="weapon-note">Power-up acumulable (+10)</div>
+</button>
+
+<button id="weaponFlame" class="weapon-card disabled" type="button">
+<div class="weapon-name">Lanzallamas</div>
+<div class="weapon-key">Tecla 3</div>
+<div class="weapon-ammo">Combustible: <span id="flameAmmo">0</span></div>
+<div class="weapon-note flame-note">Corto alcance, limpia grupos</div>
+</button>
+
+<p class="help-text">Espacio: disparar | R: recargar pistola</p>
+<p class="help-text">D (mantener): reparar pared (+25 vida, 3s)</p>
+<p class="help-text">G: lanzar granada explosiva</p>
+<p class="help-text">Cada 5 rondas se abre la tienda</p>
+</aside>
+</div>
+
+<script src="game.js"></script>
+
+</body>
+</html>
